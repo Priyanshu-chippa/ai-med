@@ -1,18 +1,9 @@
 import type { Metadata } from 'next';
-import { GeistSans, GeistMono } from 'next/font/google'; // Corrected import
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-
-const geistSans = GeistSans({ // Corrected usage
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = GeistMono({ // Corrected usage
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
 
 export const metadata: Metadata = {
   title: 'MediMate AI',
@@ -25,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className="font-sans antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
