@@ -1,3 +1,4 @@
+
 "use client"
 
 import Image from 'next/image';
@@ -17,13 +18,13 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
   const alignment = isUser ? "justify-end" : "justify-start"
   const bubbleStyles = isUser
     ? "bg-primary text-primary-foreground"
-    : "bg-secondary text-secondary-foreground"
+    : "bg-card text-card-foreground border border-border" // AI bubble gets a card style with border
 
   return (
     <div className={cn("flex items-end space-x-2 my-4", alignment)}>
       {!isUser && (
-        <Avatar className="h-8 w-8 self-start">
-          <AvatarFallback>
+        <Avatar className="h-8 w-8 self-start shadow-sm">
+          <AvatarFallback className="bg-accent text-accent-foreground">
             <Bot className="h-5 w-5" />
           </AvatarFallback>
         </Avatar>
@@ -45,7 +46,7 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
                     alt="User upload"
                     width={300}
                     height={200}
-                    className="rounded-lg object-cover"
+                    className="rounded-lg object-cover border"
                     data-ai-hint="medical condition"
                   />
                 </div>
@@ -54,15 +55,15 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
             </>
           )}
         </CardContent>
-        {(message.disclaimer || !message.isLoading) && (
-          <CardFooter className="p-3 pt-1 text-xs text-muted-foreground">
+        {(message.disclaimer || (!message.isLoading && !isUser)) && ( // Show footer for AI messages or if user message has a timestamp (though user timestamp isn't styled here)
+          <CardFooter className="p-3 pt-1 text-xs">
             {isUser ? (
-              <time dateTime={message.timestamp.toISOString()}>
+              <time dateTime={message.timestamp.toISOString()} className="text-muted-foreground">
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </time>
             ) : message.isLoading ? null : (
-               <div className="flex items-start space-x-1 text-opacity-80">
-                 <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0 text-amber-500" />
+               <div className="flex items-start space-x-1 text-muted-foreground/80">
+                 <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500 dark:text-amber-400" />
                  <span>{message.disclaimer || "Always consult a doctor."}</span>
                </div>
             )}
@@ -70,9 +71,9 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
         )}
       </Card>
       {isUser && (
-        <Avatar className="h-8 w-8 self-start">
-          <AvatarFallback>
-            <UserCircle2 className="h-5 w-5" />
+        <Avatar className="h-8 w-8 self-start shadow-sm">
+           <AvatarFallback className="bg-muted">
+            <UserCircle2 className="h-5 w-5 text-muted-foreground" />
           </AvatarFallback>
         </Avatar>
       )}
