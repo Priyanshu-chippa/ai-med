@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, type ChangeEvent, type FormEvent } from 'react'
@@ -66,7 +67,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
         />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="outline" size="icon" onClick={triggerFileInput} disabled={isLoading}>
+            <Button type="button" variant="outline" size="icon" onClick={triggerFileInput} disabled={isLoading} className="rounded-full">
               <ImageUp className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
@@ -81,15 +82,15 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
             placeholder="Type your message or describe symptoms..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            className="pr-10 rounded-full"
+            className="pr-10 rounded-full py-2 text-base" 
             disabled={isLoading}
           />
           {selectedImage && (
-            <div className="absolute bottom-12 left-0 mb-2 p-2 bg-muted rounded-lg shadow-sm flex items-center gap-2 max-w-xs">
-                <Paperclip className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground truncate">{selectedFileName || 'Image selected'}</span>
-                <Button type="button" variant="ghost" size="icon" onClick={removeSelectedImage} className="h-6 w-6">
-                    <X className="h-4 w-4" />
+            <div className="absolute bottom-12 left-0 mb-2 p-2 bg-muted/80 backdrop-blur-sm rounded-lg shadow-sm flex items-center gap-2 max-w-[calc(100%-2rem)] border border-border">
+                <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground truncate flex-1">{selectedFileName || 'Image selected'}</span>
+                <Button type="button" variant="ghost" size="icon" onClick={removeSelectedImage} className="h-6 w-6 rounded-full hover:bg-destructive/20">
+                    <X className="h-4 w-4 text-destructive" />
                 </Button>
             </div>
           )}
@@ -97,7 +98,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
         
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="outline" size="icon" onClick={() => alert("Speech-to-text coming soon!")} disabled={isLoading}>
+            <Button type="button" variant="outline" size="icon" onClick={() => alert("Speech-to-text coming soon!")} disabled={isLoading} className="rounded-full">
               <Mic className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
@@ -108,8 +109,8 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="submit" size="icon" disabled={isLoading || (!inputValue.trim() && !selectedImage)} className="rounded-full bg-primary hover:bg-primary/90">
-              <SendHorizontal className="h-5 w-5 text-primary-foreground" />
+            <Button type="submit" size="icon" disabled={isLoading || (!inputValue.trim() && !selectedImage)} className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground aspect-square">
+              <SendHorizontal className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
