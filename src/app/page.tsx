@@ -1,10 +1,11 @@
 
+
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Menu, Loader2 } from "lucide-react";
+import { Menu, Loader2, Info } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { ChatMessageCard } from "@/components/chat-message";
@@ -16,42 +17,47 @@ import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 import { useRouter } from 'next/navigation'; // Import useRouter
 import { v4 as uuidv4 } from 'uuid'; // For generating conversation_id
 import { supabase } from '@/lib/supabaseClient'; // Import supabase client
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const initialMessages: ChatMessage[] = [
   {
-    id: uuidv4(), // Use uuid for consistency, though this initial one isn't saved
+    id: uuidv4(), 
     role: 'ai',
     advice: 'Hello! I am MediMate AI. How can I assist you today?',
+    suggestions: ["You can ask me about symptoms.", "Tell me about a health concern.", "Upload an image of a skin condition."],
+    knowledgeCutoffAndSources: "My knowledge is based on a wide range of medical texts and research up to my last update. I draw on general medical understanding similar to that found in medical textbooks and reputable health information sources.",
     disclaimer: 'I am an AI assistant. My advice is not a substitute for professional medical consultation. Always consult a healthcare provider for medical concerns.',
     timestamp: new Date(),
   }
 ];
 
 export default function MediMateAIChatPage() {
-  const { user, isLoading: authLoading, session } = useAuth(); // Get user and auth loading state
-  const router = useRouter(); // Initialize router
+  const { user, isLoading: authLoading } = useAuth(); 
+  const router = useRouter(); 
 
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSending, setIsSending] = useState(false); // Renamed from isLoading to avoid conflict
+  const [isSending, setIsSending] = useState(false); 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Effect for redirecting if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth');
     }
-    // When user is loaded and there's no conversation ID, start a new one
     if (user && !currentConversationId) {
-      startNewConversation();
+      startNewConversation(false); // Don't clear messages on initial load if there are some
     }
   }, [user, authLoading, router, currentConversationId]);
 
 
-  // Effect for scrolling to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -59,20 +65,25 @@ export default function MediMateAIChatPage() {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
-  const startNewConversation = () => {
+  const startNewConversation = (clearOldMessages = true) => {
     const newConversationId = uuidv4();
     setCurrentConversationId(newConversationId);
-    setMessages([
-      {
-        id: uuidv4(),
-        role: 'ai',
-        advice: 'New chat started. How can I help you?',
-        disclaimer: 'Remember, I am an AI. Always consult a professional.',
-        timestamp: new Date(),
-        conversationId: newConversationId,
-      }
-    ]);
-    // TODO: Potentially save this new conversation record in a 'conversations' table if you add one
+    if (clearOldMessages) {
+      setMessages([
+        {
+          id: uuidv4(),
+          role: 'ai',
+          advice: 'New chat started. How can I help you?',
+          suggestions: ["Describe your symptoms.", "Ask about a medication (general info only)."],
+          knowledgeCutoffAndSources: "My knowledge is based on a wide range of medical texts and research up to my last update. I draw on general medical understanding similar to that found in medical textbooks and reputable health information sources.",
+          disclaimer: 'Remember, I am an AI. Always consult a professional.',
+          timestamp: new Date(),
+          conversationId: newConversationId,
+        }
+      ]);
+    }
+    // TODO: Save this new conversation record in a 'conversations' table if you add one.
+    // TODO: Fetch existing conversations for this user for the sidebar.
   };
 
   const handleSendMessage = async (text: string, imageBase64?: string) => {
@@ -83,6 +94,9 @@ export default function MediMateAIChatPage() {
     setIsSending(true);
     const userMessageId = uuidv4();
     const userMessageTimestamp = new Date();
+    
+    const currentUserMessages = messages.filter(msg => msg.conversationId === currentConversationId);
+
     const newUserMessage: ChatMessage = {
       id: userMessageId,
       role: 'user',
@@ -94,29 +108,22 @@ export default function MediMateAIChatPage() {
     };
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
 
-    // Save user message to Supabase
     const { error: insertError } = await supabase.from('messages').insert({
-      // id will be auto-generated by Supabase (bigint)
-      // for UI, we use uuid string. We can map this later if needed or just use Supabase id.
-      // for now, we use client-generated id for local state consistency.
       conversation_id: currentConversationId,
       user_id: user.id,
       sender: 'user',
       content: text,
       image_url: imageBase64,
-      // created_at is auto-generated
     });
 
     if (insertError) {
       console.error("Error saving user message:", insertError);
       toast({ variant: "destructive", title: "Save Error", description: "Could not save your message: " + insertError.message });
-      // Optionally remove the message from local state or mark as unsent
       setMessages(prev => prev.filter(m => m.id !== userMessageId));
       setIsSending(false);
       return;
     }
 
-    // AI Loading Message
     const aiLoadingMessageId = uuidv4();
     const aiLoadingMessage: ChatMessage = {
       id: aiLoadingMessageId,
@@ -128,14 +135,30 @@ export default function MediMateAIChatPage() {
     setMessages((prevMessages) => [...prevMessages, aiLoadingMessage]);
 
     try {
-      const aiResponse = await getAIResponse(text, imageBase64);
+      // TODO: When ready, pass conversation history to getAIResponse
+      // const historyToPass = currentUserMessages
+      //   .filter(msg => !msg.isLoading && (msg.text || msg.advice))
+      //   .map(msg => ({
+      //     role: msg.role,
+      //     content: msg.text || msg.advice || '',
+      //   }));
+
+      const aiResponse = await getAIResponse(text, imageBase64 /*, historyToPass */);
       const aiResponseTimestamp = new Date();
 
       if ('error' in aiResponse) {
         setMessages((prevMessages) =>
           prevMessages.map(msg => 
             msg.id === aiLoadingMessageId 
-            ? { ...msg, role: 'ai', advice: `Error: ${aiResponse.error}`, disclaimer: "Please try again.", isLoading: false, timestamp: aiResponseTimestamp, conversationId: currentConversationId } 
+            ? { 
+                ...msg, 
+                role: 'ai', 
+                advice: `Error: ${aiResponse.error}`, 
+                disclaimer: "Please try again.", 
+                isLoading: false, 
+                timestamp: aiResponseTimestamp, 
+                conversationId: currentConversationId 
+              } 
             : msg
           )
         );
@@ -148,13 +171,23 @@ export default function MediMateAIChatPage() {
          setMessages((prevMessages) =>
           prevMessages.map(msg => 
             msg.id === aiLoadingMessageId 
-            ? { ...msg, role: 'ai', advice: aiResponse.advice, disclaimer: aiResponse.disclaimer, isLoading: false, timestamp: aiResponseTimestamp, conversationId: currentConversationId } 
+            ? { 
+                ...msg, 
+                role: 'ai', 
+                advice: aiResponse.advice, 
+                suggestions: aiResponse.suggestions,
+                knowledgeCutoffAndSources: aiResponse.knowledgeCutoffAndSources,
+                disclaimer: aiResponse.disclaimer, 
+                isLoading: false, 
+                timestamp: aiResponseTimestamp, 
+                conversationId: currentConversationId 
+              } 
             : msg
           )
         );
         // TODO: Save AI message to Supabase. This requires backend logic or adjusted RLS
-        // to allow inserting messages with sender 'ai' and potentially null user_id or a dedicated AI user_id.
         // For now, AI messages are only in local state.
+        // Consider creating an Edge Function for this.
       }
     } catch (error) {
       console.error("Failed to get AI response:", error);
@@ -162,7 +195,15 @@ export default function MediMateAIChatPage() {
       setMessages((prevMessages) =>
         prevMessages.map(msg => 
           msg.id === aiLoadingMessageId 
-          ? { ...msg, role: 'ai', advice: `Error: ${errorMessage}`, disclaimer: "Please try again.", isLoading: false, timestamp: new Date(), conversationId: currentConversationId } 
+          ? { 
+              ...msg, 
+              role: 'ai', 
+              advice: `Error: ${errorMessage}`, 
+              disclaimer: "Please try again.", 
+              isLoading: false, 
+              timestamp: new Date(), 
+              conversationId: currentConversationId 
+            } 
           : msg
         )
       );
@@ -176,8 +217,7 @@ export default function MediMateAIChatPage() {
     }
   };
 
-  // Loading state for auth
-  if (authLoading || (!user && router.pathname !== '/auth')) { // Check router.pathname to prevent flicker on /auth page
+  if (authLoading || (!user && router.pathname !== '/auth')) { 
     return (
       <div className="flex flex-col h-screen bg-background text-foreground items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -186,36 +226,38 @@ export default function MediMateAIChatPage() {
     );
   }
   
-  // If user is definitively not logged in (and not on auth page), this should have been caught by useEffect redirect.
-  // This is a fallback or for when router is not yet ready.
   if (!user) return null; 
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex items-center justify-between p-3 md:p-4 border-b bg-background shadow-sm">
-        <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Toggle menu">
-          <Menu className="h-6 w-6" />
-        </Button>
-        <h1 className="text-xl md:text-2xl font-bold text-primary">
-          MediMate AI
-        </h1>
-        <ThemeToggle />
-      </header>
+    <TooltipProvider>
+      <div className="flex flex-col h-screen bg-background text-foreground">
+        <header className="sticky top-0 z-10 flex items-center justify-between p-3 md:p-4 border-b bg-background shadow-sm">
+          <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Toggle menu">
+            <Menu className="h-6 w-6" />
+          </Button>
+          <h1 className="text-xl md:text-2xl font-bold text-primary">
+            MediMate AI
+          </h1>
+          <ThemeToggle />
+        </header>
 
-      <ScrollArea className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
-          <ChatMessageCard key={msg.id} message={msg} />
-        ))}
-        <div ref={messagesEndRef} />
-      </ScrollArea>
+        <ScrollArea className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((msg) => (
+            <ChatMessageCard key={msg.id} message={msg} />
+          ))}
+          <div ref={messagesEndRef} />
+        </ScrollArea>
 
-      <ChatInputBar onSubmit={handleSendMessage} isLoading={isSending} />
+        <ChatInputBar onSubmit={handleSendMessage} isLoading={isSending} />
 
-      <ChatSidebar 
-        isOpen={isSidebarOpen} 
-        onClose={toggleSidebar} 
-        onNewChat={startNewConversation} 
-      />
-    </div>
+        <ChatSidebar 
+          isOpen={isSidebarOpen} 
+          onClose={toggleSidebar} 
+          onNewChat={() => startNewConversation(true)} 
+          // TODO: Pass actual chat history data and handler for loading chats
+        />
+      </div>
+    </TooltipProvider>
   );
 }
+
