@@ -2,13 +2,12 @@
 "use client"
 
 import Image from 'next/image';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Bot, UserCircle2, AlertTriangle, Info, Lightbulb } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ChatMessage } from "@/types"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
 
 interface ChatMessageProps {
   message: ChatMessage
@@ -40,9 +39,16 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
             </div>
           ) : (
             <>
-              {/* Display user message text (from content) or AI advice */}
-              {message.role === 'user' && message.content && <p className="whitespace-pre-wrap font-medium">{message.content}</p>}
-              {message.role === 'ai' && message.advice && <p className="whitespace-pre-wrap font-medium">{message.advice}</p>}
+              {message.role === 'user' && (
+                <p className="whitespace-pre-wrap font-medium">
+                  {message.text || message.content || ""}
+                </p>
+              )}
+              {message.role === 'ai' && (
+                <p className="whitespace-pre-wrap font-medium">
+                  {message.advice || "AI response not available."}
+                </p>
+              )}
               
               {message.imageUrl && (
                 <div className="mt-2">
