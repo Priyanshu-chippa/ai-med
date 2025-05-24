@@ -5,9 +5,7 @@
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  /* Add your responsive background image here */
-  /* Replace 'YOUR_IMAGE_URL_HERE' with the actual URL of your hosted image */
-  /* background-image: url('YOUR_IMAGE_URL_HERE');  */
+  /* Background image will be applied via CSS variables based on theme */
   background-size: cover; /* Ensures the image covers the entire background */
   background-position: center center; /* Centers the image */
   background-repeat: no-repeat; /* Prevents the image from repeating */
@@ -52,6 +50,8 @@ body {
     --sidebar-accent-foreground: 180 30% 30%;
     --sidebar-border: 221 83% 85%;
     --sidebar-ring: 174 40% 61%;
+
+    --background-image-url: url('https://i.postimg.cc/Hxc32nzF/minimalistic-backgro.png');
   }
 
   .dark {
@@ -89,6 +89,8 @@ body {
     --sidebar-accent-foreground: 123 44% 72%; 
     --sidebar-border: 222 30% 25%;
     --sidebar-ring: 196 95% 64%;
+
+    --background-image-url: url('https://i.postimg.cc/65fsRbyn/generate-a-night-mod.png');
   }
 }
 
@@ -101,5 +103,6 @@ body {
     /* The background-image styles above will layer on top of bg-background */
     /* If your image has transparent parts, the bg-background color might show through */
     @apply bg-background text-foreground;
+    background-image: var(--background-image-url);
   }
 }
