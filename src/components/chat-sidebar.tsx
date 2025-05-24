@@ -12,46 +12,51 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { UserCircle, MessageSquareText, History, X, LogOut, PlusCircle } from "lucide-react"
-import { useAuth } from "@/contexts/AuthContext" // Import useAuth
+import { UserCircle, MessageSquareText, LogOut, PlusCircle, X, History } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
+import type { ConversationPreview } from "@/types"
+import { Badge } from "@/components/ui/badge"
+import { formatDistanceToNowStrict } from 'date-fns';
 
 interface ChatSidebarProps {
   isOpen: boolean
   onClose: () => void
-  onNewChat?: () => void // Optional: Callback for new chat
+  onNewChat: () => void
+  conversations: ConversationPreview[]
+  onLoadConversation: (conversationId: string) => void
+  activeConversationId: string | null
 }
 
-export function ChatSidebar({ isOpen, onClose, onNewChat }: ChatSidebarProps) {
-  const { user, signOut, isLoading } = useAuth(); // Get user and signOut from context
+export function ChatSidebar({ 
+  isOpen, 
+  onClose, 
+  onNewChat, 
+  conversations, 
+  onLoadConversation,
+  activeConversationId 
+}: ChatSidebarProps) {
+  const { user, signOut, isLoading: authIsLoading } = useAuth();
   const { toast } = useToast();
-
-  // Placeholder data - will be replaced by Supabase data later
-  const recentChats = [
-    { id: "1", title: "Symptom Check: Headache" },
-    { id: "2", title: "Question about medication" },
-    { id: "3", title: "Follow-up on skin rash" },
-  ]
-  const olderChats = [
-    { id: "4", title: "Initial consultation" },
-    { id: "5", title: "Blood test results discussion" },
-  ]
 
   const handleSignOut = async () => {
     try {
       await signOut();
       toast({ title: "Logged out successfully." });
-      onClose(); // Close sidebar on logout
+      onClose(); 
     } catch (error: any) {
       toast({ variant: "destructive", title: "Logout Failed", description: error.message });
     }
   };
 
   const handleNewChatClick = () => {
-    if (onNewChat) {
-      onNewChat();
-    }
-    onClose(); // Close sidebar after starting new chat
+    onNewChat();
+    onClose(); 
+  }
+
+  const handleLoadConversation = (id: string) => {
+    onLoadConversation(id);
+    // onClose(); // Keep sidebar open for easier navigation for now
   }
 
   return (
@@ -69,7 +74,6 @@ export function ChatSidebar({ isOpen, onClose, onNewChat }: ChatSidebarProps) {
         </SheetHeader>
         
         <ScrollArea className="flex-1">
-          {/* Profile Section */}
           <div className="p-4">
             <div className="flex items-center space-x-3 mb-4">
               <Avatar className="h-12 w-12">
@@ -84,7 +88,7 @@ export function ChatSidebar({ isOpen, onClose, onNewChat }: ChatSidebarProps) {
                     <p className="font-medium text-card-foreground truncate">{user.user_metadata?.full_name || user.email}</p>
                     <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                   </>
-                ) : isLoading ? (
+                ) : authIsLoading ? (
                   <p className="text-sm text-muted-foreground">Loading user...</p>
                 ) : (
                   <p className="font-medium text-card-foreground">Guest User</p>
@@ -94,55 +98,48 @@ export function ChatSidebar({ isOpen, onClose, onNewChat }: ChatSidebarProps) {
             {user && (
               <Button variant="outline" className="w-full mb-2" onClick={() => alert("Profile page coming soon!")}>View Profile</Button>
             )}
-             {onNewChat && (
-              <Button variant="default" className="w-full mb-2 bg-primary text-primary-foreground" onClick={handleNewChatClick}>
-                <PlusCircle className="mr-2 h-4 w-4" /> New Chat
-              </Button>
-            )}
+            <Button variant="default" className="w-full mb-2 bg-primary text-primary-foreground" onClick={handleNewChatClick}>
+              <PlusCircle className="mr-2 h-4 w-4" /> New Chat
+            </Button>
           </div>
 
           <Separator className="my-2" />
 
-          {/* Recent Chats Section - Placeholder */}
-          <div className="p-4">
-            <div className="flex items-center mb-3 text-muted-foreground">
-              <MessageSquareText className="h-5 w-5 mr-2" />
-              <h3 className="text-sm font-medium">Recent Chats</h3>
-            </div>
-            <ul className="space-y-2">
-              {recentChats.map((chat) => (
-                <li key={chat.id}>
-                  <Button variant="ghost" className="w-full justify-start text-card-foreground hover:bg-accent hover:text-accent-foreground">
-                    {chat.title}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-             <p className="text-xs text-muted-foreground mt-2">Chat history coming soon!</p>
-          </div>
-
-          <Separator className="my-2" />
-
-          {/* Older Chats Section - Placeholder */}
           <div className="p-4">
             <div className="flex items-center mb-3 text-muted-foreground">
               <History className="h-5 w-5 mr-2" />
-              <h3 className="text-sm font-medium ">Older Chats</h3>
+              <h3 className="text-sm font-medium">Chat History</h3>
             </div>
-            <ul className="space-y-2">
-              {olderChats.map((chat) => (
-                <li key={chat.id}>
-                  <Button variant="ghost" className="w-full justify-start text-card-foreground hover:bg-accent hover:text-accent-foreground">
-                    {chat.title}
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            {conversations.length > 0 ? (
+              <ul className="space-y-1">
+                {conversations.map((chat) => (
+                  <li key={chat.id}>
+                    <Button 
+                      variant={activeConversationId === chat.id ? "secondary" : "ghost"} 
+                      className="w-full justify-start text-card-foreground hover:bg-accent hover:text-accent-foreground h-auto py-2"
+                      onClick={() => handleLoadConversation(chat.id)}
+                    >
+                      <div className="flex flex-col items-start w-full">
+                        <span className="truncate max-w-[200px] sm:max-w-[250px] text-sm font-normal">{chat.title}</span>
+                        <div className="flex justify-between w-full mt-1">
+                           <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNowStrict(new Date(chat.lastActivity), { addSuffix: true })}
+                          </span>
+                          <Badge variant="outline" className="text-xs">{chat.messageCount} msg</Badge>
+                        </div>
+                      </div>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2 text-center">No chat history yet. Start a new conversation!</p>
+            )}
           </div>
         </ScrollArea>
         {user && (
           <div className="p-4 border-t">
-              <Button variant="destructive" className="w-full" onClick={handleSignOut} disabled={isLoading}>
+              <Button variant="destructive" className="w-full" onClick={handleSignOut} disabled={authIsLoading}>
                 <LogOut className="mr-2 h-4 w-4" /> Logout
               </Button>
           </div>

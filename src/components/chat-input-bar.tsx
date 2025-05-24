@@ -2,11 +2,10 @@
 "use client"
 
 import React, { useState, useRef, useEffect, type ChangeEvent, type FormEvent } from 'react'
-import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea" // Changed from Input
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { SendHorizontal, ImageUp, Mic, Paperclip, X, MicOff } from "lucide-react"
-import Image from 'next/image'
 import { useToast } from '@/hooks/use-toast'
 
 interface ChatInputBarProps {
@@ -14,7 +13,6 @@ interface ChatInputBarProps {
   isLoading: boolean
 }
 
-// Declare SpeechRecognition types for window
 declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition | undefined;
@@ -27,6 +25,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null) // Ref for textarea
   const { toast } = useToast();
 
   const [isListening, setIsListening] = useState(false);
@@ -36,13 +35,12 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
       const recognition = new SpeechRecognitionAPI();
-      recognition.continuous = true; // Keep listening through pauses
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onresult = (event) => {
         let fullTranscript = '';
-        // Concatenate all results (final and interim) for the current session
         for (let i = 0; i < event.results.length; ++i) {
           fullTranscript += event.results[i][0].transcript;
         }
@@ -60,11 +58,11 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
             errorMessage = "Microphone not available or not working.";
         }
         toast({ variant: "destructive", title: "Speech Error", description: errorMessage });
-        setIsListening(false); // Ensure listening state is reset on error
+        setIsListening(false);
       };
 
       recognition.onend = () => {
-        setIsListening(false); // Reset listening state when recognition session ends
+        setIsListening(false);
       };
       
       speechRecognitionRef.current = recognition;
@@ -76,6 +74,22 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
       }
     };
   }, [toast]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'; // Reset height to shrink if text is deleted
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${scrollHeight}px`;
+      // Max height check
+      if (scrollHeight > 200) { // Max height of 200px
+          textareaRef.current.style.height = '200px';
+          textareaRef.current.style.overflowY = 'auto';
+      } else {
+          textareaRef.current.style.overflowY = 'hidden';
+      }
+    }
+  }, [inputValue]);
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -97,7 +111,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
     setSelectedImage(null);
     setSelectedFileName(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset file input
+      fileInputRef.current.value = "";
     }
   }
 
@@ -106,11 +120,14 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
     if (!inputValue.trim() && !selectedImage) return
 
     if (isListening && speechRecognitionRef.current) {
-        speechRecognitionRef.current.stop(); // Stop listening if user manually submits
+        speechRecognitionRef.current.stop(); 
     }
     await onSubmit(inputValue.trim(), selectedImage ?? undefined)
     setInputValue("")
     removeSelectedImage();
+    if (textareaRef.current) { // Reset textarea height after submit
+        textareaRef.current.style.height = 'auto';
+    }
   }
 
   const toggleListening = async () => {
@@ -121,21 +138,16 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
 
     if (isListening) {
       speechRecognitionRef.current.stop();
-      // onend will set isListening to false
     } else {
       try {
-        // Check for microphone permission by trying to get the stream
-        // This is a more robust way to ensure permissions before starting
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Stop the tracks immediately if we only needed to check permission
         stream.getTracks().forEach(track => track.stop());
-
-        setInputValue(""); // Clear input when starting a new listening session
+        setInputValue(""); 
         speechRecognitionRef.current.start();
         setIsListening(true);
       } catch (err) {
         console.error("Microphone permission error:", err);
-        toast({ variant: "destructive", title: "Mic Permission Error", description: "Could not access microphone. Please ensure permission is granted and the microphone is working." });
+        toast({ variant: "destructive", title: "Mic Permission Error", description: "Could not access microphone." });
         setIsListening(false);
       }
     }
@@ -145,7 +157,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
     <TooltipProvider delayDuration={200}>
       <form
         onSubmit={handleSubmit}
-        className="sticky bottom-0 left-0 right-0 flex items-center gap-2 border-t bg-background p-3 md:p-4 shadow-md"
+        className="sticky bottom-0 left-0 right-0 flex items-end gap-2 border-t bg-background p-3 md:p-4 shadow-md" // items-end for textarea
       >
         <input
           type="file"
@@ -156,7 +168,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
         />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="outline" size="icon" onClick={triggerFileInput} disabled={isLoading || isListening} className="rounded-full">
+            <Button type="button" variant="outline" size="icon" onClick={triggerFileInput} disabled={isLoading || isListening} className="rounded-full self-end mb-1"> {/* Align button with textarea bottom */}
               <ImageUp className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
@@ -166,16 +178,23 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
         </Tooltip>
 
         <div className="relative flex-1">
-          <Input
-            type="text"
+          <Textarea
+            ref={textareaRef}
             placeholder={isListening ? "Listening..." : "Type your message or describe symptoms..."}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            className="pr-10 rounded-full py-2 text-base" 
+            className="pr-10 rounded-xl py-2 text-base min-h-[40px] max-h-[200px] resize-none overflow-y-hidden" // Added styles for textarea
+            rows={1} // Start with 1 row
             disabled={isLoading}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e as unknown as FormEvent<HTMLFormElement>);
+              }
+            }}
           />
           {selectedImage && (
-            <div className="absolute bottom-12 left-0 mb-2 p-2 bg-muted/80 backdrop-blur-sm rounded-lg shadow-sm flex items-center gap-2 max-w-[calc(100%-2rem)] border border-border">
+            <div className="absolute bottom-[calc(100%+0.5rem)] left-0 mb-2 p-2 bg-muted/80 backdrop-blur-sm rounded-lg shadow-sm flex items-center gap-2 max-w-[calc(100%-2rem)] border border-border">
                 <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-xs text-muted-foreground truncate flex-1">{selectedFileName || 'Image selected'}</span>
                 <Button type="button" variant="ghost" size="icon" onClick={removeSelectedImage} className="h-6 w-6 rounded-full hover:bg-destructive/20">
@@ -193,7 +212,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
                 size="icon" 
                 onClick={toggleListening} 
                 disabled={isLoading || !speechRecognitionRef.current} 
-                className="rounded-full"
+                className="rounded-full self-end mb-1" // Align button
             >
               {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </Button>
@@ -205,7 +224,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="submit" size="icon" disabled={isLoading || (!inputValue.trim() && !selectedImage)} className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground aspect-square">
+            <Button type="submit" size="icon" disabled={isLoading || (!inputValue.trim() && !selectedImage)} className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground aspect-square self-end mb-1"> {/* Align button */}
               <SendHorizontal className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
