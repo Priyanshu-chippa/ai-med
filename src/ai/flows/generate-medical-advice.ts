@@ -65,7 +65,7 @@ const prompt = ai.definePrompt({
   {{/if}}
 
   Based on the user's input (and image if provided):
-  1.  Provide clear, general medical advice. Be empathetic and understanding.
+  1.  Provide clear, general medical advice. Be empathetic and understanding. If an image is provided, try to incorporate observations from it if relevant and you are able to analyze it.
   2.  If the user's query is a bit vague, ask a polite clarifying question as part of your advice.
   3.  Offer 2-3 relevant follow-up questions or suggestions the user might find helpful (e.g., "Have you also experienced...?", "You might want to consider tracking...", "Would you like to know more about managing...?").
   4.  Conclude with a statement about your knowledge base. For example: "My knowledge is based on a wide range of medical texts and research up to my last update. I draw on general medical understanding similar to that found in medical textbooks and reputable health information sources. I do not perform live web searches or have access to real-time information for this conversation."
@@ -77,6 +77,14 @@ const prompt = ai.definePrompt({
   - knowledgeCutoffAndSources: Your statement about your knowledge base.
   - disclaimer: The standard medical disclaimer.
   `,
+  config: {
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
+    ]
+  }
 });
 
 const generateMedicalAdviceFlow = ai.defineFlow(
@@ -95,7 +103,7 @@ const generateMedicalAdviceFlow = ai.defineFlow(
     
     // Ensure default values if parts of the output are missing
     return {
-        advice: output?.advice || "I'm sorry, I couldn't generate specific advice at this time. Could you try rephrasing your concern?",
+        advice: output?.advice || "I'm sorry, I couldn't generate specific advice at this time. Could you try rephrasing your concern or checking the image if one was provided?",
         suggestions: output?.suggestions || [],
         knowledgeCutoffAndSources: output?.knowledgeCutoffAndSources || "My knowledge is based on general medical information. I do not perform live web searches.",
         disclaimer: output?.disclaimer || "This is an AI assistant. Always consult with a healthcare professional for medical advice.",

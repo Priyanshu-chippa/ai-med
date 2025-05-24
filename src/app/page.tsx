@@ -32,7 +32,7 @@ const createInitialAIMessage = (conversationId: string): ChatMessage => ({
   conversationId: conversationId,
 });
 
-export default function MediMateAIChatPage() {
+export default function Page() {
   const { user, isLoading: authLoading } = useAuth(); 
   const router = useRouter(); 
 
