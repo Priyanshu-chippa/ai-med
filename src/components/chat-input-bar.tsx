@@ -1,16 +1,25 @@
 
 "use client"
 
-import React, { useState, useRef, type ChangeEvent, type FormEvent } from 'react'
+import React, { useState, useRef, useEffect, type ChangeEvent, type FormEvent } from 'react'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { SendHorizontal, ImageUp, Mic, Paperclip, X } from "lucide-react"
+import { SendHorizontal, ImageUp, Mic, Paperclip, X, MicOff } from "lucide-react"
 import Image from 'next/image'
+import { useToast } from '@/hooks/use-toast'
 
 interface ChatInputBarProps {
   onSubmit: (text: string, imageBase64?: string) => Promise<void>
   isLoading: boolean
+}
+
+// Declare SpeechRecognition types for window
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition | undefined;
+    webkitSpeechRecognition: typeof SpeechRecognition | undefined;
+  }
 }
 
 export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
@@ -18,6 +27,64 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast();
+
+  const [isListening, setIsListening] = useState(false);
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+
+  useEffect(() => {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognitionAPI) {
+      const recognition = new SpeechRecognitionAPI();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        setInputValue(finalTranscript + interimTranscript);
+        if (finalTranscript) {
+            // Optionally auto-send here, or wait for user to press send
+            // For now, we'll just populate the input
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        let errorMessage = 'Speech recognition error: ' + event.error;
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            errorMessage = "Microphone access denied. Please enable it in your browser settings.";
+        } else if (event.error === 'no-speech') {
+            errorMessage = "No speech detected. Please try again.";
+        }
+        toast({ variant: "destructive", title: "Speech Error", description: errorMessage });
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      speechRecognitionRef.current = recognition;
+    } else {
+      // Speech Recognition API not supported
+      // The button will be disabled later if not supported
+    }
+
+    return () => {
+      if (speechRecognitionRef.current) {
+        speechRecognitionRef.current.stop();
+      }
+    };
+  }, [toast]);
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -47,10 +114,37 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
     event.preventDefault()
     if (!inputValue.trim() && !selectedImage) return
 
+    if (isListening && speechRecognitionRef.current) {
+        speechRecognitionRef.current.stop(); // Stop listening if user manually submits
+    }
     await onSubmit(inputValue.trim(), selectedImage ?? undefined)
     setInputValue("")
     removeSelectedImage();
   }
+
+  const toggleListening = async () => {
+    if (!speechRecognitionRef.current) {
+      toast({ variant: "destructive", title: "Unsupported", description: "Speech recognition is not supported in your browser." });
+      return;
+    }
+
+    if (isListening) {
+      speechRecognitionRef.current.stop();
+    } else {
+      try {
+        // Check for microphone permission
+        await navigator.mediaDevices.getUserMedia({ audio: true }); 
+        // Permission granted or already available
+        speechRecognitionRef.current.start();
+        setIsListening(true);
+        setInputValue(""); // Clear input when starting to listen
+      } catch (err) {
+        console.error("Microphone permission error:", err);
+        toast({ variant: "destructive", title: "Mic Permission Error", description: "Could not access microphone. Please ensure permission is granted." });
+        setIsListening(false);
+      }
+    }
+  };
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -67,7 +161,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
         />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="outline" size="icon" onClick={triggerFileInput} disabled={isLoading} className="rounded-full">
+            <Button type="button" variant="outline" size="icon" onClick={triggerFileInput} disabled={isLoading || isListening} className="rounded-full">
               <ImageUp className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
@@ -79,7 +173,7 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
         <div className="relative flex-1">
           <Input
             type="text"
-            placeholder="Type your message or describe symptoms..."
+            placeholder={isListening ? "Listening..." : "Type your message or describe symptoms..."}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             className="pr-10 rounded-full py-2 text-base" 
@@ -98,12 +192,19 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
         
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="outline" size="icon" onClick={() => alert("Speech-to-text coming soon!")} disabled={isLoading} className="rounded-full">
-              <Mic className="h-5 w-5" />
+            <Button 
+                type="button" 
+                variant={isListening ? "destructive" : "outline"} 
+                size="icon" 
+                onClick={toggleListening} 
+                disabled={isLoading || !speechRecognitionRef.current} 
+                className="rounded-full"
+            >
+              {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Voice Input (Soon)</p>
+            <p>{isListening ? "Stop Listening" : (speechRecognitionRef.current ? "Start Listening" : "Speech not supported")}</p>
           </TooltipContent>
         </Tooltip>
 
