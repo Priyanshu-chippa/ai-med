@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import Image from 'next/image';
@@ -19,7 +18,7 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const alignment = isUser ? "justify-end" : "justify-start"
   const bubbleStyles = isUser
-    ? "bg-primary text-primary-foreground"
+    ? "bg-muted text-muted-foreground" // Changed from bg-primary text-primary-foreground
     : "bg-card text-card-foreground border border-border" 
 
   return (
@@ -41,7 +40,10 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
             </div>
           ) : (
             <>
-              {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
+              {/* Display user message text (from content) or AI advice */}
+              {message.role === 'user' && message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+              {message.role === 'ai' && message.advice && <p className="whitespace-pre-wrap">{message.advice}</p>}
+              
               {message.imageUrl && (
                 <div className="mt-2">
                   <Image
@@ -54,7 +56,6 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
                   />
                 </div>
               )}
-              {message.advice && <p className="whitespace-pre-wrap">{message.advice}</p>}
               
               {message.suggestions && message.suggestions.length > 0 && !isUser && (
                 <div className="mt-2 pt-2 border-t border-dashed border-card-foreground/20">
@@ -106,4 +107,3 @@ export function ChatMessageCard({ message }: ChatMessageProps) {
     </div>
   )
 }
-
