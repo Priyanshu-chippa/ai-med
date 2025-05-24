@@ -5,29 +5,37 @@
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  /* Add your responsive background image here */
+  /* Replace 'YOUR_IMAGE_URL_HERE' with the actual URL of your hosted image */
+  /* background-image: url('YOUR_IMAGE_URL_HERE');  */
+  background-size: cover; /* Ensures the image covers the entire background */
+  background-position: center center; /* Centers the image */
+  background-repeat: no-repeat; /* Prevents the image from repeating */
+  background-attachment: fixed; /* Makes the background image stay in place during scroll */
+  min-height: 100vh; /* Ensure body takes at least full viewport height */
 }
 
 @layer base {
   :root {
-    --background: 207 88% 94%; /* Soft Blue */
-    --foreground: 215 30% 25%; /* Darker blue/gray for text */
-    --card: 0 0% 96%; /* Cool Gray */
+    --background: 221 83% 90%; /* Soft Blue from user's Light Mode (#E3F2FD) */
+    --foreground: 215 30% 25%; 
+    --card: 0 0% 96%; /* Cool Gray from user's Light Mode (#F5F5F5) */
     --card-foreground: 215 30% 25%;
-    --popover: 0 0% 96%; /* Cool Gray */
+    --popover: 0 0% 96%; 
     --popover-foreground: 215 30% 25%;
-    --primary: 174 40% 61%; /* Muted Teal */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 188 75% 93%; /* Light Mint */
-    --secondary-foreground: 180 30% 30%; /* Darker teal for contrast */
-    --muted: 0 0% 92%; /* Slightly darker Cool Gray */
+    --primary: 174 40% 61%; /* Muted Teal from user's Light Mode (#80CBC4) */
+    --primary-foreground: 0 0% 10%; /* Darker for better contrast on Teal */
+    --secondary: 188 75% 93%; /* Light Mint from user's Light Mode (#E0F7FA) */
+    --secondary-foreground: 180 30% 30%; 
+    --muted: 0 0% 92%; 
     --muted-foreground: 210 10% 45%;
-    --accent: 200 70% 58%; /* A friendly, brighter blue for accents */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 174 40% 61%; /* Using primary teal as accent for now */
+    --accent-foreground: 0 0% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 88%; /* Slightly darker Cool Gray for borders */
-    --input: 0 0% 95%; /* Slightly off-white Cool Gray for inputs */
-    --ring: 174 40% 61%; /* Muted Teal for focus rings */
+    --border: 0 0% 88%; 
+    --input: 0 0% 95%; 
+    --ring: 174 40% 61%; 
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -36,36 +44,36 @@ body {
     --radius: 0.5rem;
 
     /* Sidebar Colors - Light Theme */
-    --sidebar-background: 0 0% 97%; /* Slightly brighter than card for subtle distinction */
+    --sidebar-background: 221 83% 92%; /* Slightly darker Soft Blue */
     --sidebar-foreground: 215 30% 25%;
-    --sidebar-primary: 174 40% 61%; /* Muted Teal */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 188 75% 93%; /* Light Mint for hover/active states */
+    --sidebar-primary: 174 40% 61%; 
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 188 75% 90%; /* Slightly darker Light Mint */
     --sidebar-accent-foreground: 180 30% 30%;
-    --sidebar-border: 0 0% 90%;
+    --sidebar-border: 221 83% 85%;
     --sidebar-ring: 174 40% 61%;
   }
 
   .dark {
-    --background: 215 30% 18%; /* Deep Navy */
-    --foreground: 210 40% 96%; /* Light Gray/Off-white */
-    --card: 215 28% 22%; /* Slightly Lighter Charcoal/Navy for cards */
+    --background: 222 47% 17%; /* Deep Navy from user's Dark Mode (#1E293B) */
+    --foreground: 210 40% 96%; 
+    --card: 220 30% 22%; /* Adjusted Charcoal Gray for cards (lighter than #2D2D2D for contrast) */
     --card-foreground: 210 40% 96%;
-    --popover: 215 28% 22%;
+    --popover: 220 30% 22%;
     --popover-foreground: 210 40% 96%;
-    --primary: 200 92% 64%; /* Muted Cyan */
-    --primary-foreground: 215 30% 10%; /* Very Dark Blue/Black */
-    --secondary: 215 25% 28%; /* Darker shade for secondary elements */
+    --primary: 196 95% 64%; /* Muted Cyan from user's Dark Mode (#4FC3F7) */
+    --primary-foreground: 215 30% 10%; 
+    --secondary: 222 40% 25%; /* Darker shade for secondary elements */
     --secondary-foreground: 210 30% 85%;
-    --muted: 215 25% 28%;
+    --muted: 222 40% 25%;
     --muted-foreground: 210 25% 70%;
-    --accent: 125 36% 75%; /* Soft Green */
-    --accent-foreground: 125 25% 15%; /* Dark Green for text on accent */
+    --accent: 123 44% 72%; /* Soft Green from user's Dark Mode (#A5D6A7) */
+    --accent-foreground: 125 25% 15%; 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 215 20% 35%; /* Darker border */
-    --input: 215 25% 26%; /* Slightly darker input */
-    --ring: 200 92% 64%; /* Muted Cyan for focus rings */
+    --border: 222 30% 30%; 
+    --input: 222 35% 26%; 
+    --ring: 196 95% 64%; 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -73,14 +81,14 @@ body {
     --chart-5: 340 75% 55%;
 
     /* Sidebar Colors - Dark Theme */
-    --sidebar-background: 215 30% 16%; /* Slightly darker than main bg */
+    --sidebar-background: 222 47% 15%; /* Slightly darker Deep Navy */
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 200 92% 64%; /* Muted Cyan */
+    --sidebar-primary: 196 95% 64%;
     --sidebar-primary-foreground: 215 30% 10%;
-    --sidebar-accent: 215 25% 25%; /* Subtle hover for sidebar items */
-    --sidebar-accent-foreground: 125 36% 75%; /* Soft Green for text on hover */
-    --sidebar-border: 215 20% 30%;
-    --sidebar-ring: 200 92% 64%;
+    --sidebar-accent: 222 40% 23%; 
+    --sidebar-accent-foreground: 123 44% 72%; 
+    --sidebar-border: 222 30% 25%;
+    --sidebar-ring: 196 95% 64%;
   }
 }
 
@@ -89,6 +97,9 @@ body {
     @apply border-border;
   }
   body {
+    /* The bg-background and text-foreground are applied here by Tailwind */
+    /* The background-image styles above will layer on top of bg-background */
+    /* If your image has transparent parts, the bg-background color might show through */
     @apply bg-background text-foreground;
   }
 }
