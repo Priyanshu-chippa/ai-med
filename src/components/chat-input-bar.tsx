@@ -36,25 +36,17 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
       const recognition = new SpeechRecognitionAPI();
-      recognition.continuous = false;
+      recognition.continuous = true; // Keep listening through pauses
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
+        let fullTranscript = '';
+        // Concatenate all results (final and interim) for the current session
+        for (let i = 0; i < event.results.length; ++i) {
+          fullTranscript += event.results[i][0].transcript;
         }
-        setInputValue(finalTranscript + interimTranscript);
-        if (finalTranscript) {
-            // Optionally auto-send here, or wait for user to press send
-            // For now, we'll just populate the input
-        }
+        setInputValue(fullTranscript);
       };
 
       recognition.onerror = (event) => {
@@ -64,19 +56,18 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
             errorMessage = "Microphone access denied. Please enable it in your browser settings.";
         } else if (event.error === 'no-speech') {
             errorMessage = "No speech detected. Please try again.";
+        } else if (event.error === 'audio-capture') {
+            errorMessage = "Microphone not available or not working.";
         }
         toast({ variant: "destructive", title: "Speech Error", description: errorMessage });
-        setIsListening(false);
+        setIsListening(false); // Ensure listening state is reset on error
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        setIsListening(false); // Reset listening state when recognition session ends
       };
       
       speechRecognitionRef.current = recognition;
-    } else {
-      // Speech Recognition API not supported
-      // The button will be disabled later if not supported
     }
 
     return () => {
@@ -130,17 +121,21 @@ export function ChatInputBar({ onSubmit, isLoading }: ChatInputBarProps) {
 
     if (isListening) {
       speechRecognitionRef.current.stop();
+      // onend will set isListening to false
     } else {
       try {
-        // Check for microphone permission
-        await navigator.mediaDevices.getUserMedia({ audio: true }); 
-        // Permission granted or already available
+        // Check for microphone permission by trying to get the stream
+        // This is a more robust way to ensure permissions before starting
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Stop the tracks immediately if we only needed to check permission
+        stream.getTracks().forEach(track => track.stop());
+
+        setInputValue(""); // Clear input when starting a new listening session
         speechRecognitionRef.current.start();
         setIsListening(true);
-        setInputValue(""); // Clear input when starting to listen
       } catch (err) {
         console.error("Microphone permission error:", err);
-        toast({ variant: "destructive", title: "Mic Permission Error", description: "Could not access microphone. Please ensure permission is granted." });
+        toast({ variant: "destructive", title: "Mic Permission Error", description: "Could not access microphone. Please ensure permission is granted and the microphone is working." });
         setIsListening(false);
       }
     }
