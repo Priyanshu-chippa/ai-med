@@ -5,7 +5,8 @@
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  /* Background image will be applied via CSS variables based on theme */
+  /* Apply the background image using the CSS variable */
+  background-image: var(--background-image-url); 
   background-size: cover; /* Ensures the image covers the entire background */
   background-position: center center; /* Centers the image */
   background-repeat: no-repeat; /* Prevents the image from repeating */
@@ -99,10 +100,9 @@ body {
     @apply border-border;
   }
   body {
-    /* The bg-background and text-foreground are applied here by Tailwind */
-    /* The background-image styles above will layer on top of bg-background */
-    /* If your image has transparent parts, the bg-background color might show through */
+    /* The bg-background and text-foreground are applied here by Tailwind.
+       The background-image is now set in the main body style block above.
+       The background-color (from bg-background) will layer underneath the image. */
     @apply bg-background text-foreground;
-    background-image: var(--background-image-url);
   }
 }
