@@ -55,7 +55,7 @@ const prompt = ai.definePrompt({
 
   Current User Input:
   Symptoms/Concern: {{{symptoms}}}
-  {{#if imageUri}}An image related to the symptoms has been provided: {{media url=imageUri}}{{/if}}
+  {{#if imageUri}}An image related to the symptoms has been provided. Please analyze this image as part of your response: {{media url=imageUri}}{{/if}}
 
   {{#if history}}
   Conversation History (most recent last):
@@ -65,7 +65,7 @@ const prompt = ai.definePrompt({
   {{/if}}
 
   Based on the user's input (and image if provided):
-  1.  Provide clear, general medical advice. Be empathetic and understanding. If an image is provided, try to incorporate observations from it if relevant and you are able to analyze it.
+  1.  Provide clear, general medical advice. Be empathetic and understanding. If an image is provided, incorporate observations from it if relevant and you are able to analyze it.
   2.  If the user's query is a bit vague, ask a polite clarifying question as part of your advice.
   3.  Offer 2-3 relevant follow-up questions or suggestions the user might find helpful (e.g., "Have you also experienced...?", "You might want to consider tracking...", "Would you like to know more about managing...?").
   4.  Conclude with a statement about your knowledge base. For example: "My knowledge is based on a wide range of medical texts and research up to my last update. I draw on general medical understanding similar to that found in medical textbooks and reputable health information sources. I do not perform live web searches or have access to real-time information for this conversation."
@@ -80,9 +80,9 @@ const prompt = ai.definePrompt({
   config: {
     safetySettings: [
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, // More permissive
       { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' }  // More permissive
     ]
   }
 });
@@ -93,21 +93,40 @@ const generateMedicalAdviceFlow = ai.defineFlow(
     inputSchema: GenerateMedicalAdviceInputSchema,
     outputSchema: GenerateMedicalAdviceOutputSchema,
   },
-  async input => {
-    // For now, we're not passing full history yet, but the prompt is ready.
-    const {output} = await prompt({
-      symptoms: input.symptoms,
-      imageUri: input.imageUri,
-      // history: input.history // Uncomment when ready to pass history
-    });
-    
-    // Ensure default values if parts of the output are missing
-    return {
-        advice: output?.advice || "I'm sorry, I couldn't generate specific advice at this time. Could you try rephrasing your concern or checking the image if one was provided?",
-        suggestions: output?.suggestions || [],
-        knowledgeCutoffAndSources: output?.knowledgeCutoffAndSources || "My knowledge is based on general medical information. I do not perform live web searches.",
-        disclaimer: output?.disclaimer || "This is an AI assistant. Always consult with a healthcare professional for medical advice.",
-    };
+  async (input) => {
+    try {
+      const {output} = await prompt({
+        symptoms: input.symptoms,
+        imageUri: input.imageUri,
+        // history: input.history // Uncomment when ready to pass history
+      });
+      
+      if (!output || !output.advice) { // Check if output itself or essential fields are missing
+        console.error('generateMedicalAdviceFlow: Prompt returned invalid or incomplete output.', output);
+        // Return a structured error response that fits GenerateMedicalAdviceOutputSchema
+        return {
+          advice: "I'm sorry, I encountered an issue processing your request, possibly with the image. The AI model did not return a valid response. Please try rephrasing or try a different image if applicable.",
+          suggestions: [],
+          knowledgeCutoffAndSources: "AI model processing error.",
+          disclaimer: "This is an AI assistant. Always consult with a healthcare professional for medical advice.",
+        };
+      }
+      
+      // Ensure default values if parts of the output are missing
+      return {
+          advice: output.advice, // output.advice is now guaranteed by the check above
+          suggestions: output.suggestions || [],
+          knowledgeCutoffAndSources: output.knowledgeCutoffAndSources || "My knowledge is based on general medical information. I do not perform live web searches.",
+          disclaimer: output.disclaimer || "This is an AI assistant. Always consult with a healthcare professional for medical advice.",
+      };
+    } catch (error: any) {
+        console.error('Critical error within generateMedicalAdviceFlow:', error.message, error.stack, error.details);
+        // This error will propagate to actions.ts and be shown to the user as a generic message.
+        // The console.error here is for server-side/Genkit debugging.
+        // To provide a more specific error to the user through the UI, actions.ts would need to inspect the error thrown from here.
+        // For now, we rely on the generic error from actions.ts but improve server logging.
+        throw new Error(`FlowExecutionError: ${error.message || 'Failed to generate medical advice within the flow due to an internal error.'}`);
+    }
   }
 );
 
