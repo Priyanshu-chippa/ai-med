@@ -65,11 +65,7 @@ export function ChatSidebar({
         <SheetHeader className="p-4 border-b">
           <div className="flex justify-between items-center">
             <SheetTitle className="text-lg font-semibold">Profile & Chats</SheetTitle>
-            <SheetClose asChild>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X className="h-5 w-5" />
-              </Button>
-            </SheetClose>
+            {/* The SheetContent component already provides a close button, so this one is removed. */}
           </div>
         </SheetHeader>
         
