@@ -56,39 +56,49 @@ body {
   }
 
   .dark {
-    --background: 222 47% 17%; /* Deep Navy from user's Dark Mode (#1E293B) */
+    --background: 222 47% 17%; /* Deep Navy from user's Dark Mode (#1E293B) - Main background remains */
     --foreground: 210 40% 96%; 
-    --card: 220 30% 22%; /* Adjusted Charcoal Gray for cards (lighter than #2D2D2D for contrast) */
-    --card-foreground: 210 40% 96%;
-    --popover: 220 30% 22%;
-    --popover-foreground: 210 40% 96%;
+    
+    /* Pastel Blue Greys for Dark Mode */
+    --card: 220 25% 28%; /* Slight blue pastel for cards (AI chat bubbles) */
+    --card-foreground: 210 40% 96%; /* Keep light foreground for contrast */
+    
+    --popover: 220 25% 28%; /* Slight blue pastel for popovers */
+    --popover-foreground: 210 40% 96%; /* Keep light foreground */
+    
+    --muted: 220 20% 32%; /* Lighter slight blue pastel for muted elements (user chat bubbles) */
+    --muted-foreground: 210 30% 80%; /* Adjusted muted foreground for better readability on lighter pastel */
+    
+    --input: 220 20% 25%; /* Darker slight blue pastel for input backgrounds */
+    
+    --border: 220 15% 40%; /* Lighter, less saturated blue pastel for borders */
+
+    /* Primary and Accent Colors for Dark Mode */
     --primary: 196 95% 64%; /* Muted Cyan from user's Dark Mode (#4FC3F7) */
     --primary-foreground: 215 30% 10%; 
     --secondary: 222 40% 25%; /* Darker shade for secondary elements */
     --secondary-foreground: 210 30% 85%;
-    --muted: 222 40% 25%;
-    --muted-foreground: 210 25% 70%;
     --accent: 123 44% 72%; /* Soft Green from user's Dark Mode (#A5D6A7) */
     --accent-foreground: 125 25% 15%; 
+    
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 222 30% 30%; 
-    --input: 222 35% 26%; 
     --ring: 196 95% 64%; 
+    
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
-    /* Sidebar Colors - Dark Theme */
-    --sidebar-background: 222 47% 15%; /* Slightly darker Deep Navy */
+    /* Sidebar Colors - Dark Theme (harmonized with pastel blue greys) */
+    --sidebar-background: 222 47% 15%; /* Slightly darker Deep Navy for sidebar main BG */
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 196 95% 64%;
+    --sidebar-primary: 196 95% 64%; /* Muted Cyan for primary actions in sidebar */
     --sidebar-primary-foreground: 215 30% 10%;
-    --sidebar-accent: 222 40% 23%; 
-    --sidebar-accent-foreground: 123 44% 72%; 
-    --sidebar-border: 222 30% 25%;
+    --sidebar-accent: 220 20% 26%;  /* Pastel blue for sidebar item hover/active, harmonizing with card */
+    --sidebar-accent-foreground: 123 44% 72%; /* Soft Green for text on pastel blue accent */
+    --sidebar-border: 220 15% 35%; /* Slightly adjusted border for sidebar */
     --sidebar-ring: 196 95% 64%;
 
     --background-image-url: url('https://i.postimg.cc/65fsRbyn/generate-a-night-mod.png');
@@ -106,3 +116,5 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+    
