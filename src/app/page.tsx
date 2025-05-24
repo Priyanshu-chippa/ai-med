@@ -30,6 +30,12 @@ const createInitialAIMessage = (conversationId: string): ChatMessage => ({
   disclaimer: 'I am an AI assistant. My advice is not a substitute for professional medical consultation. Always consult a healthcare provider for medical concerns.',
   timestamp: new Date(),
   conversationId: conversationId,
+  content: JSON.stringify({
+    advice: 'Hello! I am MediMate AI. How can I assist you today?',
+    suggestions: ["You can ask me about symptoms.", "Tell me about a health concern.", "Upload an image of a skin condition."],
+    knowledgeCutoffAndSources: "My knowledge is based on a wide range of medical texts and research up to my last update. I draw on general medical understanding similar to that found in medical textbooks and reputable health information sources.",
+    disclaimer: 'I am an AI assistant. My advice is not a substitute for professional medical consultation. Always consult a healthcare provider for medical concerns.',
+  }),
 });
 
 export default function Page() {
@@ -47,21 +53,18 @@ export default function Page() {
 
   const fetchChatHistory = useCallback(async () => {
     if (!user) return;
-    setIsSending(true); // Use isSending to indicate loading history as well
+    setIsSending(true); 
     try {
       const { data, error } = await supabase
         .from('messages')
         .select('conversation_id, content, created_at, sender, user_id')
-        .eq('user_id', user.id) // Fetch messages where the current user participated
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
       if (data) {
         const conversationsMap = new Map<string, { title: string; lastActivity: string; messageCount: number; firstUserMessageContent?: string, firstMessageTimestamp?: string }>();
-
-        // Iterate through all messages to find conversations relevant to the user
-        const allMessagesForUserConversations: Tables<'messages'>[] = [];
         const userConversationIds = new Set<string>();
         data.forEach(msg => {
             if (msg.user_id === user.id && msg.conversation_id) {
@@ -69,17 +72,16 @@ export default function Page() {
             }
         });
         
-        // Now fetch all messages for these conversation IDs
+        const allMessagesForUserConversations: Tables<'messages'>[] = [];
         if (userConversationIds.size > 0) {
             const { data: fullConvoData, error: fullConvoError } = await supabase
                 .from('messages')
-                .select('conversation_id, content, created_at, sender, user_id')
+                .select('conversation_id, content, created_at, sender, user_id, image_url') // Ensure image_url is selected
                 .in('conversation_id', Array.from(userConversationIds))
                 .order('created_at', { ascending: true });
             if (fullConvoError) throw fullConvoError;
             if (fullConvoData) allMessagesForUserConversations.push(...fullConvoData);
         }
-
 
         allMessagesForUserConversations.forEach(msg => {
           if (!msg.conversation_id) return;
@@ -96,40 +98,38 @@ export default function Page() {
           }
         });
         
-        const previews: ConversationPreview[] = Array.from(conversationsMap.entries()).map(([id, data]) => ({
+        const previews: ConversationPreview[] = Array.from(conversationsMap.entries()).map(([id, convoData]) => ({
           id,
-          title: data.firstUserMessageContent || `Chat from ${new Date(data.firstMessageTimestamp || data.lastActivity).toLocaleDateString()}`,
-          lastActivity: data.lastActivity,
-          messageCount: data.messageCount,
+          title: convoData.firstUserMessageContent || `Chat from ${new Date(convoData.firstMessageTimestamp || convoData.lastActivity).toLocaleDateString()}`,
+          lastActivity: convoData.lastActivity,
+          messageCount: convoData.messageCount,
         })).sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
         
         setChatHistoryList(previews);
 
-        // If no currentConversationId is set, or if it's not in the fetched history,
-        // set it to the most recent one or start a new one.
         if (previews.length > 0 && (!currentConversationId || !previews.find(p => p.id === currentConversationId))) {
-           if (!currentConversationId) loadConversation(previews[0].id); // Load most recent by default
+           if (!currentConversationId) loadConversation(previews[0].id);
         } else if (previews.length === 0 && !currentConversationId) {
-          startNewConversation(false); // Start new if no history
+          startNewConversation(false); 
         }
       }
     } catch (error: any) {
       console.error("Error fetching chat history:", error);
       toast({ variant: "destructive", title: "History Error", description: "Could not load chat history: " + error.message });
-      if (!currentConversationId) startNewConversation(false); // Start new if history fails
+      if (!currentConversationId) startNewConversation(false); 
     } finally {
       setIsSending(false);
     }
-  }, [user, toast]); // Removed currentConversationId from deps to avoid loop on initial load
+  }, [user, toast, currentConversationId]); // Added currentConversationId back for specific scenario
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth');
     }
-    if (user && chatHistoryList.length === 0) { // Fetch history only if not already fetched
+    if (user && chatHistoryList.length === 0 && !currentConversationId) { 
       fetchChatHistory();
     }
-  }, [user, authLoading, router, fetchChatHistory, chatHistoryList.length]);
+  }, [user, authLoading, router, fetchChatHistory, chatHistoryList.length, currentConversationId]);
 
 
   const scrollToBottom = () => {
@@ -143,12 +143,12 @@ export default function Page() {
     if (!user) return;
     setIsSending(true);
     setCurrentConversationId(conversationId);
-    setMessages([]); // Clear previous messages
+    setMessages([]); 
 
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('*')
+        .select('*') // Selects all columns, including image_url
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
@@ -156,31 +156,46 @@ export default function Page() {
 
       const loadedMessages: ChatMessage[] = data.map((dbMsg: Tables<'messages'>) => {
         const baseMessage: ChatMessage = {
-          id: dbMsg.id.toString(), // Use Supabase ID as main ID now for simplicity
+          id: dbMsg.id.toString(),
           supabase_id: dbMsg.id,
           role: dbMsg.sender as 'user' | 'ai',
           timestamp: new Date(dbMsg.created_at),
           conversationId: dbMsg.conversation_id,
           userId: dbMsg.user_id || undefined,
-          content: dbMsg.content, // Store raw content
-          imageUrl: dbMsg.sender === 'user' ? dbMsg.image_url || undefined : undefined,
+          content: dbMsg.content, // Keep raw content for parsing/display
         };
-        if (dbMsg.sender === 'ai' && dbMsg.content) {
-          try {
-            const aiContent = JSON.parse(dbMsg.content);
-            return {
-              ...baseMessage,
-              advice: aiContent.advice,
-              suggestions: aiContent.suggestions,
-              knowledgeCutoffAndSources: aiContent.knowledgeCutoffAndSources,
-              disclaimer: aiContent.disclaimer,
+
+        if (dbMsg.sender === 'ai') {
+          if (dbMsg.content) {
+            try {
+              const aiContent = JSON.parse(dbMsg.content);
+              return {
+                ...baseMessage,
+                advice: aiContent.advice || "AI response data is incomplete.",
+                suggestions: aiContent.suggestions || [],
+                knowledgeCutoffAndSources: aiContent.knowledgeCutoffAndSources || "Knowledge source not specified.",
+                disclaimer: aiContent.disclaimer || "Please consult a professional.",
+              };
+            } catch (e) {
+              console.error("Error parsing AI message content:", e, "Raw content:", dbMsg.content);
+              return { 
+                ...baseMessage, 
+                advice: "Error: AI response from database is malformed.",
+              };
+            }
+          } else {
+            return { 
+              ...baseMessage, 
+              advice: "Error: AI response content is missing from database.",
             };
-          } catch (e) {
-            console.error("Error parsing AI message content:", e);
-            return { ...baseMessage, advice: "Error: Could not display AI response." };
           }
         }
-        return { ...baseMessage, text: dbMsg.content || undefined };
+        // For user messages
+        return { 
+          ...baseMessage, 
+          text: dbMsg.content || "", // User message text
+          imageUrl: dbMsg.image_url || undefined // User image URL
+        };
       });
       setMessages(loadedMessages);
     } catch (error: any) {
@@ -188,7 +203,7 @@ export default function Page() {
     } finally {
       setIsSending(false);
     }
-    setIsSidebarOpen(false); // Close sidebar after loading a chat
+    setIsSidebarOpen(false);
   }, [user, toast]);
 
   const startNewConversation = useCallback((clearOldMessages = true) => {
@@ -196,21 +211,24 @@ export default function Page() {
     setCurrentConversationId(newConversationId);
     if (clearOldMessages) {
       setMessages([createInitialAIMessage(newConversationId)]);
+    } else {
+      // If not clearing, maybe we just want to set the ID for the next message
+      // but the current UI flow expects messages to be cleared or an initial message to be set.
+      // For now, always start with an initial AI message.
+       setMessages([createInitialAIMessage(newConversationId)]);
     }
-    // Add a placeholder to chatHistoryList or refetch
-    // For now, relying on next message send to update history list or manual refresh.
-    // A more advanced approach would update chatHistoryList here optimistically.
     setIsSidebarOpen(false);
   }, []);
 
 
   const handleSendMessage = async (text: string, imageBase64?: string) => {
     if (!user || !currentConversationId) {
-      toast({ variant: "destructive", title: "Error", description: "You must be logged in to send messages." });
+      toast({ variant: "destructive", title: "Error", description: "You must be logged in and in a conversation to send messages." });
+      if (!currentConversationId) startNewConversation(); // Start a new one if ID is missing
       return;
     }
     setIsSending(true);
-    const userMessageIdClient = uuidv4(); // Client-side temporary ID for UI update
+    const userMessageIdClient = uuidv4(); 
     
     const newUserMessage: ChatMessage = {
       id: userMessageIdClient,
@@ -235,17 +253,14 @@ export default function Page() {
 
       if (insertError) throw insertError;
 
-      // Update message ID with Supabase ID if needed, or remove temp client ID logic
       if (insertedMessage) {
         setMessages(prev => prev.map(m => m.id === userMessageIdClient ? {...m, id: insertedMessage.id.toString(), supabase_id: insertedMessage.id} : m));
       }
       
-      // If this is the first message in a new conversation, refresh history list
-      const isNewConversation = !chatHistoryList.find(c => c.id === currentConversationId);
-      if (isNewConversation) {
-          await fetchChatHistory(); // Refresh history to include this new chat
+      const isNewConversationInList = !chatHistoryList.find(c => c.id === currentConversationId);
+      if (isNewConversationInList) {
+          await fetchChatHistory(); 
       }
-
 
       const aiLoadingMessageId = uuidv4();
       const aiLoadingMessage: ChatMessage = {
@@ -259,27 +274,25 @@ export default function Page() {
 
       const aiResponse = await getAIResponse(text, imageBase64);
 
-      if ('error' in aiResponse) {
-        throw new Error(aiResponse.error);
+      if ('error' in aiResponse || !aiResponse.advice) { // Ensure advice is present
+        throw new Error('error' in aiResponse ? aiResponse.error : "AI response was invalid.");
       }
       
-      // Save AI message to Supabase via Edge Function
       const { data: savedAiMsg, error: saveAiError } = await supabase.functions.invoke('save-ai-message', {
         body: {
           conversation_id: currentConversationId,
-          user_id: user.id, // Pass user_id for context, though function uses service_role
-          ai_response: aiResponse, // Send the structured AI response
+          user_id: user.id, 
+          ai_response: aiResponse, 
         }
       });
 
       if (saveAiError) {
         console.error("Error saving AI message via function:", saveAiError);
-        // Proceed to display AI message in UI anyway, but log error
         toast({ variant: "destructive", title: "Save Error", description: "AI response shown, but failed to save to history: " + saveAiError.message});
       }
       
       const aiMessageToDisplay: ChatMessage = {
-        id: savedAiMsg?.data?.id?.toString() || uuidv4(), // Use ID from function if available
+        id: savedAiMsg?.data?.id?.toString() || uuidv4(), 
         supabase_id: savedAiMsg?.data?.id,
         role: 'ai',
         advice: aiResponse.advice,
@@ -288,7 +301,7 @@ export default function Page() {
         disclaimer: aiResponse.disclaimer,
         timestamp: new Date(),
         conversationId: currentConversationId,
-        content: JSON.stringify(aiResponse), // Store raw JSON
+        content: JSON.stringify(aiResponse), 
       };
 
       setMessages((prevMessages) =>
@@ -298,9 +311,10 @@ export default function Page() {
     } catch (error: any) {
       console.error("Error in handleSendMessage:", error);
       const errorMessage = error.message || "An unexpected error occurred.";
-      setMessages((prevMessages) =>
-        prevMessages.map(msg => 
-          msg.id === (messages.find(m => m.isLoading)?.id || '') // find loading message
+      setMessages((prevMessages) => {
+        const loadingMsgId = prevMessages.find(m => m.isLoading)?.id || '';
+        return prevMessages.map(msg => 
+          msg.id === loadingMsgId
           ? { 
               ...msg, 
               role: 'ai', 
@@ -309,11 +323,11 @@ export default function Page() {
               isLoading: false, 
               timestamp: new Date(), 
               conversationId: currentConversationId,
-              content: JSON.stringify({error: errorMessage}),
+              content: JSON.stringify({error: errorMessage, advice: `Error: ${errorMessage}`, disclaimer: "Please try again."}),
             } 
           : msg
         )
-      );
+      });
       toast({
         variant: "destructive",
         title: "Error",
@@ -321,17 +335,25 @@ export default function Page() {
       });
     } finally {
       setIsSending(false);
-       // Update lastActivity for current chat to re-sort history
       if (currentConversationId && chatHistoryList.find(c => c.id === currentConversationId)) {
         setChatHistoryList(prev => 
             prev.map(c => c.id === currentConversationId ? {...c, lastActivity: new Date().toISOString()} : c)
             .sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
         );
-      } else if (currentConversationId) { // If it was a new chat, refetch history to include it.
+      } else if (currentConversationId) { 
           await fetchChatHistory();
       }
     }
   };
+
+  useEffect(() => {
+    // Ensure initial message is set if starting fresh and no history loaded yet
+    if (user && !currentConversationId && messages.length === 0 && !authLoading && chatHistoryList.length === 0) {
+      startNewConversation();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, currentConversationId, messages.length, authLoading, chatHistoryList.length]);
+
 
   if (authLoading && !user) { 
     return (
@@ -362,7 +384,7 @@ export default function Page() {
             <ChatMessageCard key={msg.id} message={msg} />
           ))}
           <div ref={messagesEndRef} />
-          {isSending && messages.length === 0 && currentConversationId && ( // Show loader when loading a conversation
+          {isSending && messages.length === 0 && currentConversationId && ( 
              <div className="flex justify-center items-center h-full">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
              </div>
